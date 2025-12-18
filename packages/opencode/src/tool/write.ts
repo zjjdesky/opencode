@@ -2,7 +2,6 @@ import z from "zod"
 import * as path from "path"
 import { Tool } from "./tool"
 import { LSP } from "../lsp"
-import { Permission } from "../permission"
 import DESCRIPTION from "./write.txt"
 import { Bus } from "../bus"
 import { File } from "../file"
@@ -60,7 +59,7 @@ export const WriteTool = Tool.define("write", {
     const exists = await file.exists()
     if (exists) await FileTime.assert(ctx.sessionID, filepath)
 
-    await PermissionNext.request({
+    await PermissionNext.ask({
       permission: "edit",
       title: "tbd",
       patterns: [path.relative(Instance.worktree, filepath)],

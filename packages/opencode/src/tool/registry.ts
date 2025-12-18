@@ -10,7 +10,6 @@ import { TodoWriteTool, TodoReadTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
-import type { Agent } from "../agent/agent"
 import { Tool } from "./tool"
 import { Instance } from "../project/instance"
 import { Config } from "../config/config"
@@ -130,22 +129,6 @@ export namespace ToolRegistry {
           }
         }),
     )
-    return result
-  }
-
-  export async function enabled(agent: Agent.Info): Promise<Record<string, boolean>> {
-    const result: Record<string, boolean> = {}
-
-    for (const [tool, action] of Object.entries(agent.permission)) {
-      if (!Bun.deepEquals(action, { "*": "deny" })) continue
-      result[tool] = false
-      if (tool === "edit") {
-        result["write"] = false
-        result["patch"] = false
-        result["multiedit"] = false
-      }
-    }
-
     return result
   }
 }

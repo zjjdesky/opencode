@@ -507,3 +507,251 @@ test("deduplicates duplicate plugins from global and local configs", async () =>
     },
   })
 })
+
+// Legacy tools migration tests
+
+test("migrates legacy tools config to permissions - allow", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                bash: true,
+                read: true,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        bash: "allow",
+        read: "allow",
+      })
+    },
+  })
+})
+
+test("migrates legacy tools config to permissions - deny", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                bash: false,
+                webfetch: false,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        bash: "deny",
+        webfetch: "deny",
+      })
+    },
+  })
+})
+
+test("migrates legacy write tool to edit permission", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                write: true,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        edit: "allow",
+      })
+    },
+  })
+})
+
+test("migrates legacy edit tool to edit permission", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                edit: false,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        edit: "deny",
+      })
+    },
+  })
+})
+
+test("migrates legacy patch tool to edit permission", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                patch: true,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        edit: "allow",
+      })
+    },
+  })
+})
+
+test("migrates legacy multiedit tool to edit permission", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                multiedit: false,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        edit: "deny",
+      })
+    },
+  })
+})
+
+test("migrates mixed legacy tools config", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              tools: {
+                bash: true,
+                write: true,
+                read: false,
+                webfetch: true,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        bash: "allow",
+        edit: "allow",
+        read: "deny",
+        webfetch: "allow",
+      })
+    },
+  })
+})
+
+test("merges legacy tools with existing permission config", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "opencode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          agent: {
+            test: {
+              permission: {
+                glob: "allow",
+              },
+              tools: {
+                bash: true,
+              },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const config = await Config.get()
+      expect(config.agent?.["test"]?.permission).toEqual({
+        glob: "allow",
+        bash: "allow",
+      })
+    },
+  })
+})

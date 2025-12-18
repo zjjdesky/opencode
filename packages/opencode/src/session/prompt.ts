@@ -578,13 +578,7 @@ export namespace SessionPrompt {
   }) {
     using _ = log.time("resolveTools")
     const tools: Record<string, AITool> = {}
-    const enabledTools = pipe(
-      input.agent.tools,
-      mergeDeep(await ToolRegistry.enabled(input.agent)),
-      mergeDeep(input.tools ?? {}),
-    )
     for (const item of await ToolRegistry.tools(input.model.providerID)) {
-      if (Wildcard.all(item.id, enabledTools) === false) continue
       const schema = ProviderTransform.schema(input.model, z.toJSONSchema(item.parameters))
       tools[item.id] = tool({
         id: item.id as any,
@@ -647,7 +641,6 @@ export namespace SessionPrompt {
       })
     }
     for (const [key, item] of Object.entries(await MCP.tools())) {
-      if (Wildcard.all(key, enabledTools) === false) continue
       const execute = item.execute
       if (!execute) continue
 

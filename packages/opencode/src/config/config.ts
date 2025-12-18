@@ -450,7 +450,7 @@ export namespace Config {
       permission: Permission.optional(),
     })
     .catchall(z.any())
-    .transform((agent) => {
+    .transform((agent, ctx) => {
       const knownKeys = new Set([
         "model",
         "prompt",

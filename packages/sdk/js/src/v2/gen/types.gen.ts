@@ -450,15 +450,18 @@ export type EventMessagePartRemoved = {
 export type PermissionRequest = {
   id: string
   sessionID: string
-  type: string
+  patterns: Array<string>
   title: string
   description: string
-  keys: Array<string>
-  patterns?: Array<string>
+  metadata: {
+    [key: string]: unknown
+  }
+  always: Array<string>
+  permission: string
 }
 
-export type EventPermissionRequest = {
-  type: "permission.request"
+export type EventPermissionRequested = {
+  type: "permission.requested"
   properties: PermissionRequest
 }
 
@@ -489,40 +492,6 @@ export type EventPermissionReplied = {
     sessionID: string
     permissionID: string
     response: string
-  }
-}
-
-export type EventFileEdited = {
-  type: "file.edited"
-  properties: {
-    file: string
-  }
-}
-
-export type Todo = {
-  /**
-   * Brief description of the task
-   */
-  content: string
-  /**
-   * Current status of the task: pending, in_progress, completed, cancelled
-   */
-  status: string
-  /**
-   * Priority level of the task: high, medium, low
-   */
-  priority: string
-  /**
-   * Unique identifier for the todo item
-   */
-  id: string
-}
-
-export type EventTodoUpdated = {
-  type: "todo.updated"
-  properties: {
-    sessionID: string
-    todos: Array<Todo>
   }
 }
 
@@ -559,6 +528,40 @@ export type EventSessionCompacted = {
   type: "session.compacted"
   properties: {
     sessionID: string
+  }
+}
+
+export type EventFileEdited = {
+  type: "file.edited"
+  properties: {
+    file: string
+  }
+}
+
+export type Todo = {
+  /**
+   * Brief description of the task
+   */
+  content: string
+  /**
+   * Current status of the task: pending, in_progress, completed, cancelled
+   */
+  status: string
+  /**
+   * Priority level of the task: high, medium, low
+   */
+  priority: string
+  /**
+   * Unique identifier for the todo item
+   */
+  id: string
+}
+
+export type EventTodoUpdated = {
+  type: "todo.updated"
+  properties: {
+    sessionID: string
+    todos: Array<Todo>
   }
 }
 
@@ -760,14 +763,14 @@ export type Event =
   | EventMessageRemoved
   | EventMessagePartUpdated
   | EventMessagePartRemoved
-  | EventPermissionRequest
+  | EventPermissionRequested
   | EventPermissionUpdated
   | EventPermissionReplied
-  | EventFileEdited
-  | EventTodoUpdated
   | EventSessionStatus
   | EventSessionIdle
   | EventSessionCompacted
+  | EventFileEdited
+  | EventTodoUpdated
   | EventCommandExecuted
   | EventSessionCreated
   | EventSessionUpdated
@@ -1159,6 +1162,7 @@ export type PermissionConfig = {
   external_directory?: PermissionRuleConfig
   todowrite?: PermissionActionConfig
   todoread?: PermissionActionConfig
+  webfetch?: PermissionActionConfig
   websearch?: PermissionActionConfig
   codesearch?: PermissionActionConfig
   doom_loop?: PermissionActionConfig
@@ -1170,6 +1174,9 @@ export type AgentConfig = {
   temperature?: number
   top_p?: number
   prompt?: string
+  /**
+   * @deprecated Use 'permission' field instead
+   */
   tools?: {
     [key: string]: boolean
   }
@@ -1179,12 +1186,19 @@ export type AgentConfig = {
    */
   description?: string
   mode?: "subagent" | "primary" | "all"
+  options?: {
+    [key: string]: unknown
+  }
   /**
    * Hex color code for the agent (e.g., #FF5733)
    */
   color?: string
   /**
    * Maximum number of agentic iterations before forcing text-only response
+   */
+  steps?: number
+  /**
+   * @deprecated Use 'steps' field instead.
    */
   maxSteps?: number
   permission?: PermissionConfig
@@ -1199,6 +1213,9 @@ export type AgentConfig = {
     | "subagent"
     | "primary"
     | "all"
+    | {
+        [key: string]: unknown
+      }
     | string
     | number
     | PermissionConfig
@@ -1766,12 +1783,13 @@ export type File = {
   status: "added" | "deleted" | "modified"
 }
 
-export type PermissionRule = {
-  [key: string]: PermissionActionConfig
-}
+export type PermissionAction = "allow" | "deny" | "ask"
 
 export type PermissionRuleset = {
-  [key: string]: PermissionRule
+  [key: string]: Array<{
+    pattern: string
+    action: PermissionAction
+  }>
 }
 
 export type Agent = {

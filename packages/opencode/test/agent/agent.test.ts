@@ -2,6 +2,13 @@ import { test, expect } from "bun:test"
 import { tmpdir } from "../fixture/fixture"
 import { Instance } from "../../src/project/instance"
 import { Agent } from "../../src/agent/agent"
+import { PermissionNext } from "../../src/permission/next"
+
+// Helper to evaluate permission for a tool with wildcard pattern
+function evalPerm(agent: Agent.Info | undefined, permission: string): PermissionNext.Action | undefined {
+  if (!agent) return undefined
+  return PermissionNext.evaluate(permission, "*", agent.permission)
+}
 
 test("returns default native agents when no config", async () => {
   await using tmp = await tmpdir()
@@ -30,8 +37,8 @@ test("build agent has correct default properties", async () => {
       expect(build).toBeDefined()
       expect(build?.mode).toBe("primary")
       expect(build?.native).toBe(true)
-      expect(build?.permission.edit?.["*"]).toBe("allow")
-      expect(build?.permission.bash?.["*"]).toBe("allow")
+      expect(evalPerm(build, "edit")).toBe("allow")
+      expect(evalPerm(build, "bash")).toBe("allow")
     },
   })
 })
@@ -43,8 +50,10 @@ test("plan agent denies edits except .opencode/plan/*", async () => {
     fn: async () => {
       const plan = await Agent.get("plan")
       expect(plan).toBeDefined()
-      expect(plan?.permission.edit?.["*"]).toBe("deny")
-      expect(plan?.permission.edit?.[".opencode/plan/*"]).toBe("allow")
+      // Wildcard is denied
+      expect(evalPerm(plan, "edit")).toBe("deny")
+      // But specific path is allowed
+      expect(PermissionNext.evaluate("edit", ".opencode/plan/foo.md", plan!.permission)).toBe("allow")
     },
   })
 })
@@ -57,10 +66,10 @@ test("explore agent denies edit and write", async () => {
       const explore = await Agent.get("explore")
       expect(explore).toBeDefined()
       expect(explore?.mode).toBe("subagent")
-      expect(explore?.permission.edit?.["*"]).toBe("deny")
-      expect(explore?.permission.write?.["*"]).toBe("deny")
-      expect(explore?.permission.todoread?.["*"]).toBe("deny")
-      expect(explore?.permission.todowrite?.["*"]).toBe("deny")
+      expect(evalPerm(explore, "edit")).toBe("deny")
+      expect(evalPerm(explore, "write")).toBe("deny")
+      expect(evalPerm(explore, "todoread")).toBe("deny")
+      expect(evalPerm(explore, "todowrite")).toBe("deny")
     },
   })
 })
@@ -74,8 +83,8 @@ test("general agent denies todo tools", async () => {
       expect(general).toBeDefined()
       expect(general?.mode).toBe("subagent")
       expect(general?.hidden).toBe(true)
-      expect(general?.permission.todoread?.["*"]).toBe("deny")
-      expect(general?.permission.todowrite?.["*"]).toBe("deny")
+      expect(evalPerm(general, "todoread")).toBe("deny")
+      expect(evalPerm(general, "todowrite")).toBe("deny")
     },
   })
 })
@@ -88,7 +97,9 @@ test("compaction agent denies all permissions", async () => {
       const compaction = await Agent.get("compaction")
       expect(compaction).toBeDefined()
       expect(compaction?.hidden).toBe(true)
-      expect(compaction?.permission["*"]?.["*"]).toBe("deny")
+      expect(evalPerm(compaction, "bash")).toBe("deny")
+      expect(evalPerm(compaction, "edit")).toBe("deny")
+      expect(evalPerm(compaction, "read")).toBe("deny")
     },
   })
 })
@@ -189,8 +200,10 @@ test("agent permission config merges with defaults", async () => {
     fn: async () => {
       const build = await Agent.get("build")
       expect(build).toBeDefined()
-      expect(build?.permission.bash?.["rm -rf *"]).toBe("deny")
-      expect(build?.permission.edit?.["*"]).toBe("allow")
+      // Specific pattern is denied
+      expect(PermissionNext.evaluate("bash", "rm -rf *", build!.permission)).toBe("deny")
+      // Edit still allowed
+      expect(evalPerm(build, "edit")).toBe("allow")
     },
   })
 })
@@ -208,7 +221,7 @@ test("global permission config applies to all agents", async () => {
     fn: async () => {
       const build = await Agent.get("build")
       expect(build).toBeDefined()
-      expect(build?.permission.bash?.["*"]).toBe("deny")
+      expect(evalPerm(build, "bash")).toBe("deny")
     },
   })
 })
@@ -373,8 +386,8 @@ test("default permission includes doom_loop and external_directory as ask", asyn
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(build?.permission.doom_loop?.["*"]).toBe("ask")
-      expect(build?.permission.external_directory?.["*"]).toBe("ask")
+      expect(evalPerm(build, "doom_loop")).toBe("ask")
+      expect(evalPerm(build, "external_directory")).toBe("ask")
     },
   })
 })
@@ -385,7 +398,7 @@ test("webfetch is allowed by default", async () => {
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(build?.permission.webfetch?.["*"]).toBe("allow")
+      expect(evalPerm(build, "webfetch")).toBe("allow")
     },
   })
 })
@@ -407,8 +420,8 @@ test("legacy tools config converts to permissions", async () => {
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(build?.permission.bash?.["*"]).toBe("deny")
-      expect(build?.permission.read?.["*"]).toBe("deny")
+      expect(evalPerm(build, "bash")).toBe("deny")
+      expect(evalPerm(build, "read")).toBe("deny")
     },
   })
 })
@@ -429,7 +442,7 @@ test("legacy tools config maps write/edit/patch/multiedit to edit permission", a
     directory: tmp.path,
     fn: async () => {
       const build = await Agent.get("build")
-      expect(build?.permission.edit?.["*"]).toBe("deny")
+      expect(evalPerm(build, "edit")).toBe("deny")
     },
   })
 })

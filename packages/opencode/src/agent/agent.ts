@@ -44,23 +44,11 @@ export namespace Agent {
     const cfg = await Config.get()
 
     const permission: PermissionNext.Ruleset = PermissionNext.merge(
-      {
-        edit: {
-          "*": "allow",
-        },
-        bash: {
-          "*": "allow",
-        },
-        webfetch: {
-          "*": "allow",
-        },
-        doom_loop: {
-          "*": "ask",
-        },
-        external_directory: {
-          "*": "ask",
-        },
-      },
+      PermissionNext.fromConfig({
+        "*": "allow",
+        doom_loop: "ask",
+        external_directory: "ask",
+      }),
       PermissionNext.fromConfig(cfg.permission ?? {}),
     )
 
@@ -75,12 +63,15 @@ export namespace Agent {
       plan: {
         name: "plan",
         options: {},
-        permission: PermissionNext.merge(permission, {
-          edit: {
-            "*": "deny",
-            ".opencode/plan/*": "allow",
-          },
-        }),
+        permission: PermissionNext.merge(
+          permission,
+          PermissionNext.fromConfig({
+            edit: {
+              "*": "deny",
+              ".opencode/plan/*.md": "allow",
+            },
+          }),
+        ),
         mode: "primary",
         native: true,
       },
@@ -104,10 +95,15 @@ export namespace Agent {
         permission: PermissionNext.merge(
           permission,
           PermissionNext.fromConfig({
-            todoread: "deny",
-            todowrite: "deny",
-            edit: "deny",
-            write: "deny",
+            "*": "deny",
+            grep: "allow",
+            glob: "allow",
+            list: "allow",
+            bash: "allow",
+            webfetch: "allow",
+            websearch: "allow",
+            codesearch: "allow",
+            read: "allow",
           }),
         ),
         description: `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
@@ -161,11 +157,7 @@ export namespace Agent {
         item = result[key] = {
           name: key,
           mode: "all",
-          permission: {
-            "*": {
-              "*": "allow",
-            },
-          },
+          permission,
           options: {},
           native: false,
         }
@@ -179,11 +171,7 @@ export namespace Agent {
       item.name = value.options?.name ?? item.name
       item.steps = value.steps ?? item.steps
       item.options = mergeDeep(item.options, value.options ?? {})
-      item.permission = PermissionNext.merge(
-        item.permission,
-        PermissionNext.fromConfig(cfg.permission ?? {}),
-        PermissionNext.fromConfig(value.permission ?? {}),
-      )
+      item.permission = PermissionNext.merge(item.permission, PermissionNext.fromConfig(value.permission ?? {}))
     }
     return result
   })
