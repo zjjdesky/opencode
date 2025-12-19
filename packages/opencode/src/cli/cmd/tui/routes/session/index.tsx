@@ -67,6 +67,7 @@ import { Footer } from "./footer.tsx"
 import { usePromptRef } from "../../context/prompt"
 import { Filesystem } from "@/util/filesystem"
 import { DialogSubagent } from "./dialog-subagent.tsx"
+import { PermissionPrompt } from "./permission"
 
 addDefaultParsers(parsers.parsers)
 
@@ -977,17 +978,24 @@ export function Session() {
               </For>
             </scrollbox>
             <box flexShrink={0}>
-              <Prompt
-                ref={(r) => {
-                  prompt = r
-                  promptRef.set(r)
-                }}
-                disabled={permissions().length > 0}
-                onSubmit={() => {
-                  toBottom()
-                }}
-                sessionID={route.sessionID}
-              />
+              <Switch>
+                <Match when={permissions().length > 0}>
+                  <PermissionPrompt request={permissions()[0]} />
+                </Match>
+                <Match when={true}>
+                  <Prompt
+                    ref={(r) => {
+                      prompt = r
+                      promptRef.set(r)
+                    }}
+                    disabled={permissions().length > 0}
+                    onSubmit={() => {
+                      toBottom()
+                    }}
+                    sessionID={route.sessionID}
+                  />
+                </Match>
+              </Switch>
             </box>
             <Show when={!sidebarVisible()}>
               <Footer />

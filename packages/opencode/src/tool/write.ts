@@ -61,7 +61,7 @@ export const WriteTool = Tool.define("write", {
 
     await PermissionNext.ask({
       permission: "edit",
-      title: "tbd",
+      title: `Create new file ${path.relative(Instance.directory, filepath)}`,
       patterns: [path.relative(Instance.worktree, filepath)],
       always: ["*"],
       sessionID: ctx.sessionID,

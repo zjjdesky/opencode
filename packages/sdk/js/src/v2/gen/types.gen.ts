@@ -450,6 +450,7 @@ export type EventMessagePartRemoved = {
 export type PermissionRequest = {
   id: string
   sessionID: string
+  permission: string
   patterns: Array<string>
   title: string
   description: string
@@ -457,12 +458,20 @@ export type PermissionRequest = {
     [key: string]: unknown
   }
   always: Array<string>
-  permission: string
 }
 
-export type EventPermissionRequested = {
-  type: "permission.requested"
+export type EventPermissionNextAsked = {
+  type: "permission.next.asked"
   properties: PermissionRequest
+}
+
+export type EventPermissionNextReplied = {
+  type: "permission.next.replied"
+  properties: {
+    sessionID: string
+    requestID: string
+    reply: "once" | "always" | "reject"
+  }
 }
 
 export type Permission = {
@@ -763,7 +772,8 @@ export type Event =
   | EventMessageRemoved
   | EventMessagePartUpdated
   | EventMessagePartRemoved
-  | EventPermissionRequested
+  | EventPermissionNextAsked
+  | EventPermissionNextReplied
   | EventPermissionUpdated
   | EventPermissionReplied
   | EventSessionStatus
@@ -1785,11 +1795,13 @@ export type File = {
 
 export type PermissionAction = "allow" | "deny" | "ask"
 
+export type PermissionRule = {
+  pattern: string
+  action: PermissionAction
+}
+
 export type PermissionRuleset = {
-  [key: string]: Array<{
-    pattern: string
-    action: PermissionAction
-  }>
+  [key: string]: Array<PermissionRule>
 }
 
 export type Agent = {
