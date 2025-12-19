@@ -3,27 +3,41 @@ import { For } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
 import { useTheme } from "../../context/theme"
 import type { PermissionRequest } from "@opencode-ai/sdk/v2"
+import { useSDK } from "../../context/sdk"
 
-const OPTIONS = ["allow", "always allow", "deny"] as const
-type Option = (typeof OPTIONS)[number]
+const OPTIONS = {
+  once: "Approve once",
+  always: "Approve always",
+  reject: "Reject",
+}
+const OPTION_LIST = Object.keys(OPTIONS)
+type Option = keyof typeof OPTIONS
 
 export function PermissionPrompt(props: { request: PermissionRequest }) {
+  const sdk = useSDK()
   const { theme } = useTheme()
   const [store, setStore] = createStore({
-    active: "allow" as Option,
+    reply: "once" as Option,
   })
 
   useKeyboard((evt) => {
     if (evt.name === "left") {
-      const idx = OPTIONS.indexOf(store.active)
-      const next = OPTIONS[(idx - 1 + OPTIONS.length) % OPTIONS.length]
-      setStore("active", next)
+      const idx = OPTION_LIST.indexOf(store.reply)
+      const next = OPTION_LIST[(idx - 1 + OPTION_LIST.length) % OPTION_LIST.length]
+      setStore("reply", next as Option)
     }
 
     if (evt.name === "right") {
-      const idx = OPTIONS.indexOf(store.active)
-      const next = OPTIONS[(idx + 1) % OPTIONS.length]
-      setStore("active", next)
+      const idx = OPTION_LIST.indexOf(store.reply)
+      const next = OPTION_LIST[(idx + 1) % OPTION_LIST.length]
+      setStore("reply", next as Option)
+    }
+
+    if (evt.name === "return") {
+      sdk.client.permission.reply({
+        reply: store.reply,
+        requestID: props.request.id,
+      })
     }
   })
 
@@ -50,14 +64,16 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
         justifyContent="space-between"
       >
         <box flexDirection="row" gap={1}>
-          <For each={[...OPTIONS]}>
+          <For each={[...OPTION_LIST]}>
             {(option) => (
               <box
                 paddingLeft={1}
                 paddingRight={1}
-                backgroundColor={option === store.active ? theme.primary : theme.backgroundMenu}
+                backgroundColor={option === store.reply ? theme.primary : theme.backgroundMenu}
               >
-                <text fg={option === store.active ? theme.selectedListItemText : theme.textMuted}>{option}</text>
+                <text fg={option === store.reply ? theme.selectedListItemText : theme.textMuted}>
+                  {OPTIONS[option as Option]}
+                </text>
               </box>
             )}
           </For>

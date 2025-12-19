@@ -143,12 +143,6 @@ export namespace PermissionNext {
               resolve,
               reject,
             }
-            setTimeout(() => {
-              respond({
-                response: "once",
-                requestID: id,
-              })
-            }, 5000)
             Bus.publish(Event.Asked, info)
           })
         }
@@ -157,35 +151,30 @@ export namespace PermissionNext {
     },
   )
 
-  export const respond = fn(
+  export const reply = fn(
     z.object({
       requestID: Identifier.schema("permission"),
-      response: Reply,
+      reply: Reply,
     }),
     async (input) => {
       const existing = state().pending[input.requestID]
       if (!existing) return
       delete state().pending[input.requestID]
-      if (input.response === "reject") {
+      Bus.publish(Event.Replied, {
+        sessionID: existing.info.sessionID,
+        requestID: existing.info.id,
+        reply: input.reply,
+      })
+      if (input.reply === "reject") {
         existing.reject(new RejectedError())
         return
       }
-      if (input.response === "once") {
+      if (input.reply === "once") {
         existing.resolve()
-        Bus.publish(Event.Replied, {
-          sessionID: existing.info.sessionID,
-          requestID: existing.info.id,
-          reply: input.response,
-        })
         return
       }
-      if (input.response === "always") {
+      if (input.reply === "always") {
         existing.resolve()
-        Bus.publish(Event.Replied, {
-          sessionID: existing.info.sessionID,
-          requestID: existing.info.id,
-          reply: input.response,
-        })
         return
       }
     },
