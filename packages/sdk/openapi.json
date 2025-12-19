@@ -2673,6 +2673,84 @@
         ]
       }
     },
+    "/permission/{requestID}/reply": {
+      "post": {
+        "operationId": "permission.reply",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "directory",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "requestID",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "summary": "Respond to permission request",
+        "description": "Approve or deny a permission request from the AI assistant.",
+        "responses": {
+          "200": {
+            "description": "Permission processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reply": {
+                    "type": "string",
+                    "enum": ["once", "always", "reject"]
+                  }
+                },
+                "required": ["reply"]
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.permission.reply({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/command": {
       "get": {
         "operationId": "command.list",
@@ -6079,8 +6157,14 @@
             "type": "string",
             "pattern": "^ses.*"
           },
-          "type": {
+          "permission": {
             "type": "string"
+          },
+          "patterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "title": {
             "type": "string"
@@ -6088,30 +6172,57 @@
           "description": {
             "type": "string"
           },
-          "keys": {
-            "type": "array",
-            "items": {
+          "metadata": {
+            "type": "object",
+            "propertyNames": {
               "type": "string"
-            }
+            },
+            "additionalProperties": {}
           },
-          "patterns": {
+          "always": {
             "type": "array",
             "items": {
               "type": "string"
             }
           }
         },
-        "required": ["id", "sessionID", "type", "title", "description", "keys"]
+        "required": ["id", "sessionID", "permission", "patterns", "title", "description", "metadata", "always"]
       },
-      "Event.permission.request": {
+      "Event.permission.next.asked": {
         "type": "object",
         "properties": {
           "type": {
             "type": "string",
-            "const": "permission.request"
+            "const": "permission.next.asked"
           },
           "properties": {
             "$ref": "#/components/schemas/PermissionRequest"
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.permission.next.replied": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "permission.next.replied"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "requestID": {
+                "type": "string"
+              },
+              "reply": {
+                "type": "string",
+                "enum": ["once", "always", "reject"]
+              }
+            },
+            "required": ["sessionID", "requestID", "reply"]
           }
         },
         "required": ["type", "properties"]
@@ -6203,72 +6314,6 @@
               }
             },
             "required": ["sessionID", "permissionID", "response"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Event.file.edited": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "file.edited"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "file": {
-                "type": "string"
-              }
-            },
-            "required": ["file"]
-          }
-        },
-        "required": ["type", "properties"]
-      },
-      "Todo": {
-        "type": "object",
-        "properties": {
-          "content": {
-            "description": "Brief description of the task",
-            "type": "string"
-          },
-          "status": {
-            "description": "Current status of the task: pending, in_progress, completed, cancelled",
-            "type": "string"
-          },
-          "priority": {
-            "description": "Priority level of the task: high, medium, low",
-            "type": "string"
-          },
-          "id": {
-            "description": "Unique identifier for the todo item",
-            "type": "string"
-          }
-        },
-        "required": ["content", "status", "priority", "id"]
-      },
-      "Event.todo.updated": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "todo.updated"
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string"
-              },
-              "todos": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Todo"
-                }
-              }
-            },
-            "required": ["sessionID", "todos"]
           }
         },
         "required": ["type", "properties"]
@@ -6372,6 +6417,72 @@
               }
             },
             "required": ["sessionID"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Event.file.edited": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file.edited"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string"
+              }
+            },
+            "required": ["file"]
+          }
+        },
+        "required": ["type", "properties"]
+      },
+      "Todo": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "description": "Brief description of the task",
+            "type": "string"
+          },
+          "status": {
+            "description": "Current status of the task: pending, in_progress, completed, cancelled",
+            "type": "string"
+          },
+          "priority": {
+            "description": "Priority level of the task: high, medium, low",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the todo item",
+            "type": "string"
+          }
+        },
+        "required": ["content", "status", "priority", "id"]
+      },
+      "Event.todo.updated": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "todo.updated"
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "sessionID": {
+                "type": "string"
+              },
+              "todos": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Todo"
+                }
+              }
+            },
+            "required": ["sessionID", "todos"]
           }
         },
         "required": ["type", "properties"]
@@ -6936,19 +7047,16 @@
             "$ref": "#/components/schemas/Event.message.part.removed"
           },
           {
-            "$ref": "#/components/schemas/Event.permission.request"
+            "$ref": "#/components/schemas/Event.permission.next.asked"
+          },
+          {
+            "$ref": "#/components/schemas/Event.permission.next.replied"
           },
           {
             "$ref": "#/components/schemas/Event.permission.updated"
           },
           {
             "$ref": "#/components/schemas/Event.permission.replied"
-          },
-          {
-            "$ref": "#/components/schemas/Event.file.edited"
-          },
-          {
-            "$ref": "#/components/schemas/Event.todo.updated"
           },
           {
             "$ref": "#/components/schemas/Event.session.status"
@@ -6958,6 +7066,12 @@
           },
           {
             "$ref": "#/components/schemas/Event.session.compacted"
+          },
+          {
+            "$ref": "#/components/schemas/Event.file.edited"
+          },
+          {
+            "$ref": "#/components/schemas/Event.todo.updated"
           },
           {
             "$ref": "#/components/schemas/Event.command.executed"
@@ -7537,6 +7651,9 @@
           "todoread": {
             "$ref": "#/components/schemas/PermissionActionConfig"
           },
+          "webfetch": {
+            "$ref": "#/components/schemas/PermissionActionConfig"
+          },
           "websearch": {
             "$ref": "#/components/schemas/PermissionActionConfig"
           },
@@ -7567,6 +7684,7 @@
             "type": "string"
           },
           "tools": {
+            "description": "@deprecated Use 'permission' field instead",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -7586,13 +7704,26 @@
             "type": "string",
             "enum": ["subagent", "primary", "all"]
           },
+          "options": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
           "color": {
             "description": "Hex color code for the agent (e.g., #FF5733)",
             "type": "string",
             "pattern": "^#[0-9a-fA-F]{6}$"
           },
-          "maxSteps": {
+          "steps": {
             "description": "Maximum number of agentic iterations before forcing text-only response",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "maxSteps": {
+            "description": "@deprecated Use 'steps' field instead.",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
@@ -9015,14 +9146,21 @@
         },
         "required": ["path", "added", "removed", "status"]
       },
+      "PermissionAction": {
+        "type": "string",
+        "enum": ["allow", "deny", "ask"]
+      },
       "PermissionRule": {
         "type": "object",
-        "propertyNames": {
-          "type": "string"
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/PermissionAction"
+          }
         },
-        "additionalProperties": {
-          "$ref": "#/components/schemas/PermissionActionConfig"
-        }
+        "required": ["pattern", "action"]
       },
       "PermissionRuleset": {
         "type": "object",
@@ -9030,7 +9168,10 @@
           "type": "string"
         },
         "additionalProperties": {
-          "$ref": "#/components/schemas/PermissionRule"
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PermissionRule"
+          }
         }
       },
       "Agent": {
